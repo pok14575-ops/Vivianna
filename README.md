@@ -81,7 +81,7 @@ These must be downloaded separately from their original sources.
 ---
 
 ## Quick Start
-
+[for more detailed install instructions look at the](INSTALL.md)
 ### 1. Create Python Environment
 
 Install Python and create a virtual environment.
@@ -93,7 +93,6 @@ pip install -r requirements_full_2026-06-04.txt
 ### 2. Install llama.cpp
 
 Download the version documented in `PROVENANCE.md`.
-
 Extract to:
 
 ```text
