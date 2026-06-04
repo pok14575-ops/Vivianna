@@ -153,7 +153,7 @@ This is a work-in-progress prototype.
 
 Current known issues include:
 
-- Salience judge currently under investigation
+- Salience judge currently dormant. (for immediate fix I recommend looking at https://qwen.ai/blog?id=qwen3guard)
 - Hardcoded Windows paths remain in several components
 - DeBERTa cache currently lives inside Hugging Face cache locations
 - German TTS path remains experimental
@@ -164,7 +164,7 @@ Current known issues include:
 ## Design Philosophy
 
 [Diagram to show how it is designed to work in future](mermaid-diagram.png)
-
+[Design Philosophy in Detail](Vivianna Doctrine.md)
 The goal is not to maximize benchmark scores.
 
 The goal is to explore how much conversational continuity, memory persistence, emotional coherence, and identity stability can be achieved using a fully local architecture running on consumer hardware.
