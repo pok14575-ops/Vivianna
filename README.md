@@ -1,6 +1,6 @@
 # Vivianna (Work In Progress)
 
-I fell into this rabbit hole as someone with no CS Background and no plan how to do anything. This entire project is the work of 3 frontier LLMs and a simple human trying to create something useful for the household. This is day 14 ( 00:02 ) on an RTX 5070 and it runs end2end on my system. Story of how this came to be will follow within next days including a simple clip to show the terminal. Visualization is not included since the orchestration needs to fully work first. Adding additional failure modes would fall out of my capability to pilot Claude Code. So maximum credits to Qwen as base model, frontier Model as Audit, GPT for his strict RLHF verdicts and Claude for doing the hardwork.
+I fell into this rabbit hole as someone with no CS Background and no plan how to do anything. This entire project is the work of 3 frontier LLMs and a simple human trying to create something useful for the household. This is day 14 on an RTX 5070 and it runs end2end on my system. Story of how this came to be will follow within next days including a simple clip to show the terminal. Visualization is not included since the orchestration needs to fully work first. Adding additional failure modes would fall out of my capability to pilot Claude Code. So maximum credits to Qwen as base model, frontier Model as Audit, GPT for his strict RLHF verdicts and Claude for doing the hardwork.
 
 ## What is Vivianna?
 
