@@ -81,7 +81,7 @@ These must be downloaded separately from their original sources.
 ---
 
 ## Quick Start
-[for more detailed install instructions look at the](INSTALL.md)
+[for more detailed install instructions look at this](INSTALL.md)
 ### 1. Create Python Environment
 
 Install Python and create a virtual environment.
@@ -162,6 +162,8 @@ Current known issues include:
 ---
 
 ## Design Philosophy
+
+[Diagram to show how it is designed to work in future](mermaid-diagram.png)
 
 The goal is not to maximize benchmark scores.
 
