@@ -165,7 +165,7 @@ Current known issues include:
 
 [Diagram to show how it is designed to work in future](mermaid-diagram.png)
 
-[Design Philosophy in Detail](Vivianna Doctrine.md)
+[Design Philosophy in Detail](Vivianna%20Doctrine.md)
 
 The goal is not to maximize benchmark scores.
 
