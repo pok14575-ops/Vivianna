@@ -1,0 +1,3 @@
+# Keep the data/ folder in the repo. Its contents (memory store, model caches,
+# chat history) are gitignored — they are created at runtime / downloaded on
+# first run. This file just ensures the folder exists on a fresh clone.

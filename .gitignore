@@ -1,0 +1,35 @@
+# --- Python environment (recreated from requirements_full_*.txt) ---
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# --- Environment / secrets files ---
+.env
+.env.*
+
+# --- Model caches: auto-download on first run, do NOT ship ---
+data/fastembed_cache/
+data/jieba_cache/
+
+# --- Personal / dummy runtime state (not for the public repo) ---
+data/memory_vectors.npy
+data/memory_meta.pkl
+data/chat_history.json
+
+# --- Dev artifacts ---
+instant rollback/
+test_logs/
+*.log
+
+# --- Internal working notes (not for the public repo) ---
+SESSION_2026-06-02.md
+
+# --- Secrets: keys live OUTSIDE the repo (F:\AI\API keys\), but guard anyway ---
+*.key
+api_keys/
+**/API keys/
