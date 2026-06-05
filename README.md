@@ -162,6 +162,7 @@ Current known issues include:
 - DeBERTa cache currently lives inside Hugging Face cache locations
 - German TTS path remains experimental
 - Retrieval quality is still being actively improved
+- forgot to wire /purge command, so manual deletion of data/ vector store required for full reset
 
 ---
 
