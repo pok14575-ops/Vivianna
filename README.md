@@ -163,6 +163,7 @@ Current known issues include:
 - German TTS path remains experimental
 - Retrieval quality is still being actively improved
 - forgot to wire /purge command, so manual deletion of data/ vector store required for full reset
+- mmrpoj is included but not active for later optional extension on the project
 
 ---
 
