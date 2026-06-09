@@ -1,3 +1,7 @@
+[![Vivianna V0.1 Teaser](https://img.youtube.com/vi/uLzrKGEjsPg/maxresdefault.jpg)](https://youtu.be/uLzrKGEjsPg)
+
+Will update for a V0.1 clip on a later date, this clip is just the old teaser for V0.1 , a placeholder
+
 # Vivianna V0.1
 
 > A fully local, Windows-first voice assistant / companion prototype built around local speech input, local LLM inference, local speech output, persistent memory, and modular cognitive routing layers.
