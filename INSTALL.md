@@ -1,12 +1,11 @@
 # Installing Vivianna — fully-local voice assistant (Windows)
 
-_Last verified 2026-06-04 on the **only** machine it has ever run on: Windows 11, RTX 5070
+_Last verified 2026-06-09 on the **only** machine it has ever run on: Windows 11, RTX 5070
 12 GB, Ryzen 7 9700X, 32 GB RAM, Python 3.12.10. It has **not** been tested on other hardware,
 other GPUs, AMD, or Linux. "Untested elsewhere" is honest; "doesn't run" is not — it does run,
 here, end to end. If you're on a different box, expect to adapt the GPU/VRAM steps._
 
-This guide is written to be followed **top to bottom with no prior knowledge**. If you copy the
-exact folder layout in Step 1, **you will not have to edit a single line of code.**
+This guide is written to be followed **top to bottom with no prior knowledge.**
 
 ---
 
@@ -21,50 +20,44 @@ speech-out (Kokoro), and local memory. The only optional network calls are web s
 
 ---
 
-## 1. ⚠️ The directory layout — read this first, it's the #1 thing that breaks
+## 1. Where things go — paths are now configurable (no special drive needed)
 
-**Every path in this project is hard-coded to the `F:\AI\` tree.** The launch scripts and
-`config.py` use absolute paths. The foolproof path is to **reproduce this exact layout on a
-drive `F:`** — then zero edits are needed:
+Unzip/clone this `Vivianna` folder **anywhere** — any drive, any path, including a single-drive
+laptop. Nothing is hard-coded to `F:\` anymore. There are two ways to tell Vivianna where the
+big external files (the runtime + the LLM weights) live:
+
+**Option A — default in-repo layout (zero config).** Drop the files into folders next to the
+code and you don't have to set anything:
 
 ```
-F:\AI\
-├── llama.cpp\                 ← the runtime (Step 3)  — contains llama-server.exe + DLLs
-├── Models\                    ← the weights (Step 4)
-│   ├── Qwen3.5-9B-UD-Q4_K_XL.gguf
+Vivianna\                         ← this code folder (put it anywhere)
+├── main.py, config.py, *.py, character_config.yaml, chat_template.jinja
+├── run_vivianna.bat, start_server.bat
+├── requirements_full_2026-06-04.txt
+├── .env.example                  ← template (only needed for Option B)
+├── venv\                         ← you create this in Step 4
+├── llama.cpp\                    ← the runtime (Step 2): llama-server.exe + its DLLs
+├── models\                       ← the weights (Step 3)
+│   ├── Qwen3.5-9B-MTP-UD-Q4_K_XL.gguf   (what run_vivianna.bat expects)
 │   ├── kokoro-v1.0.onnx
 │   └── voices-v1.0.bin
-├── asr-bench\
-│   └── models\                ← faster-whisper cache (auto-fills on first /asr, or pre-copy)
-├── API keys\                  ← optional: groq.txt / tavily.txt / exa.txt (Step 6)
-└── Vivianna\                  ← THIS code folder
-    ├── main.py, config.py, *.py, character_config.yaml, chat_template.jinja
-    ├── requirements_full_2026-06-04.txt
-    ├── run_vivianna.bat, start_server.bat
-    ├── venv\                  ← you create this in Step 5
-    └── data\                  ← memory + fastembed_cache (ships with the repo)
+├── keys\                         ← optional: groq.txt / tavily.txt / exa.txt (Step 5)
+└── data\                         ← memory + caches (ships with the repo)
 ```
 
-> **No drive `F:`?** You don't need a physical one. The paths are hard-coded to my dev layout —
-> that's an artifact of where I built it, not a requirement of the software. Two ways to satisfy it:
->
-> **Easiest (recommended — works on any machine, even a single-drive laptop): map a folder to `F:`.**
-> Pick or make a folder on any drive with ~14 GB free, then in a terminal run:
-> ```powershell
-> mkdir C:\AI_root          # or any path/drive with space; skip if it exists
-> subst F: C:\AI_root       # F:\ now points here — no code edits needed
-> ```
-> Now build the `F:\AI\...` tree from Step 1 normally (it lives inside `C:\AI_root`). **Caveat:**
-> `subst` resets on reboot, so **re-run the `subst F: ...` line once each session before launching**
-> (or drop it into a tiny `.bat` you run first / a logon task).
->
-> **Permanent alternative (edit paths instead of mapping):** find-and-replace `F:\AI` → your base
-> in **three files** — `config.py` (the `r"F:\AI\..."` lines: `_API_KEY_DIR`, `ASR_MODEL_DIR`,
-> `MEMORY_DIR`) and **both** `run_vivianna.bat` / `start_server.bat` (the `llama-server.exe` path,
-> the `-m` model path, the `--chat-template-file` path, and the `venv` / `cd` paths). Miss one and
-> it half-starts — `subst` avoids that risk entirely, which is why it's the recommended route.
->
-> _(Making the base path configurable so none of this is needed is a known TODO.)_
+**Option B — files already live elsewhere? Point a `.env` at them.** Copy `.env.example` to
+`.env` and fill in the paths (the file is gitignored, so your machine layout never ships):
+
+```
+LLAMA_EXE=D:\tools\llama.cpp\llama-server.exe
+VIVIANNA_LLM_MODEL=D:\models\Qwen3.5-9B-MTP-UD-Q4_K_XL.gguf
+VIVIANNA_KEY_DIR=D:\secrets\vivianna-keys
+# TTS/ASR model dirs and the data dir all have sensible <repo>-relative defaults — set
+# them only if you keep those elsewhere too. See .env.example for the full list.
+```
+
+`.env` values win; anything you leave blank falls back to the default in-repo layout above.
+**Either way, no source edits are required.**
 
 ---
 
@@ -78,53 +71,66 @@ F:\AI\
   install a CUDA toolkit).
 - **Python 3.12** (built/verified on **3.12.10**). Install from python.org, tick *"Add Python
   to PATH"*. Other 3.1x may work but 3.12 is what the wheel pins target.
-- **~14 GB free disk** (weights ~9 GB + venv incl. PyTorch ~3 GB + runtime ~0.7 GB).
+- **~15 GB free disk** (weights ~9 GB + venv incl. PyTorch ~3 GB + runtime ~0.7 GB + encoder
+  models that auto-download to your user HF cache ~1.6 GB).
 - A terminal: **PowerShell** for the install commands below.
 
 ---
 
-## 3. Get the llama.cpp runtime → `F:\AI\llama.cpp`
+## 3. Get the llama.cpp runtime
 
 The brain runs on llama.cpp build **b9305, CUDA 13.1**. Either copy the `llama.cpp` folder from
 the release bundle as-is, **or** fetch it:
 
 1. Download `llama-b9305-cuda13.1.zip` **and** `cudart-cuda13.1.zip` from
    `https://github.com/ggml-org/llama.cpp/releases/tag/b9305`.
-2. Extract **both** into `F:\AI\llama.cpp\` (the cudart zip provides `cudart64_*.dll` /
-   `cublas64_*.dll` — without it the server won't start).
-3. Confirm `F:\AI\llama.cpp\llama-server.exe` exists.
+2. Extract **both** into one folder (the cudart zip provides `cudart64_*.dll` / `cublas64_*.dll`
+   — without it the server won't start).
+3. Place that folder at `Vivianna\llama.cpp\` (Option A), **or** set `LLAMA_EXE` in `.env` to the
+   `llama-server.exe` inside it (Option B). Confirm `llama-server.exe` exists where you pointed.
 
 > Hashes for both zips are in `PROVENANCE.md` (verify if you fetched them yourself).
-> Note: those NVIDIA `cudart`/`cublas` DLLs are under **NVIDIA's CUDA redistribution terms**,
+> Note: the NVIDIA `cudart`/`cublas` DLLs are under **NVIDIA's CUDA redistribution terms**,
 > not MIT — fine to use, mind the terms if you re-distribute.
 
 ---
 
-## 4. Get the model weights → `F:\AI\Models`
+## 4. Get the model weights
 
-All four are free to download. Exact source repos, revisions, SHA256, and licenses are in
-**`PROVENANCE.md`** — use it to verify bytes. Minimum required to run:
+### 4a. Place by hand (the two large ones)
 
-| File | Put at | Fetch from |
+| File | Put at (Option A) | Fetch from |
 |---|---|---|
-| `Qwen3.5-9B-UD-Q4_K_XL.gguf` (5.6 GB) | `F:\AI\Models\` | `huggingface.co/unsloth/Qwen3.5-9B-GGUF` → `Qwen3.5-9B-UD-Q4_K_XL.gguf` |
-| `kokoro-v1.0.onnx` (310 MB) | `F:\AI\Models\` | `github.com/thewh1teagle/kokoro-onnx` release `model-files-v1.0` |
-| `voices-v1.0.bin` (27 MB) | `F:\AI\Models\` | same kokoro-onnx release |
+| `Qwen3.5-9B-MTP-UD-Q4_K_XL.gguf` (~5.6 GB) | `Vivianna\models\` | `huggingface.co/unsloth/Qwen3.5-9B-GGUF` (the **MTP** variant) |
+| `kokoro-v1.0.onnx` (310 MB) | `Vivianna\models\` | `github.com/thewh1teagle/kokoro-onnx` release `model-files-v1.0` |
+| `voices-v1.0.bin` (27 MB) | `Vivianna\models\` | same kokoro-onnx release |
 
-**Two smaller models download themselves on first run** (no action needed if you're online):
-the memory embedder (`bge-small`, ships in `data\fastembed_cache`) and the ASR model
-(`faster-whisper medium`, lands in `F:\AI\asr-bench\models` the first time you enable `/asr`).
-The salience model (`deberta-v3-large`) also auto-pulls on demand and is **optional** — the
-assistant runs fine if it never loads.
+> **Which Qwen GGUF?** `run_vivianna.bat` uses **MTP speculative decoding** (`--spec-type
+> draft-mtp`) for ~1.38× faster output, so it expects the **MTP** variant
+> (`Qwen3.5-9B-MTP-UD-Q4_K_XL.gguf`). If you only have the standard `Qwen3.5-9B-UD-Q4_K_XL.gguf`,
+> use **`start_server.bat`** instead (same model, no MTP) — or set `VIVIANNA_LLM_MODEL` to your
+> file and remove the three `--spec-*` lines from `run_vivianna.bat`. Exact source repo,
+> revision, SHA256 and license for the standard GGUF are in `PROVENANCE.md`.
 
-> **Optional / not required:** `Qwen3.5-9B-mmproj-BF16.gguf` (the vision projector). The launch
-> scripts do **not** load it, so skip it unless you wire up image input yourself.
+### 4b. Auto-download (the four small ones — no action needed if you're online)
+
+On first run these pull themselves into your user HuggingFace cache (`C:\Users\<you>\.cache\
+huggingface\hub`) or the data dir, totalling ~1.6 GB:
+
+- **memory embedder** `bge-small` → `data\fastembed_cache`
+- **salience + rerank** `cross-encoder/ettin-reranker-150m-v1`
+- **emotion** `SamLowe/roberta-base-go_emotions`
+- **grounding NLI** `tasksource/deberta-small-long-nli`
+- **ASR** `faster-whisper medium` → the ASR model dir, the first time you enable `/asr`
+
+All four are Apache-2.0/MIT (see `PROVENANCE.md`). For an offline target, pre-stage them by
+copying the cache folders or setting `HF_HOME` before first run.
 
 ---
 
 ## 5. Create the Python environment
 
-Open PowerShell **in `F:\AI\Vivianna`** and run:
+Open PowerShell **in the `Vivianna` folder** and run:
 
 ```powershell
 # 1. create + activate a 3.12 virtual environment
@@ -141,35 +147,34 @@ pip install torch==2.11.0+cu128 torchaudio==2.11.0+cu128 --index-url https://dow
 pip install -r requirements_full_2026-06-04.txt
 ```
 
-This pulls ~170 pinned packages incl. faster-whisper, ctranslate2, kokoro/kokoro-onnx,
-fastembed, transformers, and the `nvidia-*-cu12` runtime libs that ASR needs. Give it a few
-minutes.
+This pulls ~174 pinned packages incl. faster-whisper, ctranslate2, kokoro/kokoro-onnx,
+fastembed, transformers, **sentence-transformers** (for the ettin cross-encoder), and the
+`nvidia-*-cu12` runtime libs that ASR needs. Give it a few minutes.
 
 ---
 
 ## 6. (Optional) Web-search API keys
 
 Vivianna runs fully without these — they only enable live web lookups and the `/read` command.
-To enable them, create plain-text files (key string only, nothing else):
+To enable them, create plain-text files (key string only, nothing else) in `Vivianna\keys\`
+(Option A) or in whatever folder you set as `VIVIANNA_KEY_DIR` (Option B):
 
-- `F:\AI\API keys\tavily.txt` — Tavily key (general web; free tier at tavily.com)
-- `F:\AI\API keys\exa.txt` — Exa key (semantic/research; free tier at exa.ai)
-- `F:\AI\API keys\groq.txt` — **not needed** (legacy; ASR is local now). Leave absent.
+- `tavily.txt` — Tavily key (general web; free tier at tavily.com)
+- `exa.txt` — Exa key (semantic/research; free tier at exa.ai)
+- `groq.txt` — **not needed** (legacy; ASR is local now). Leave absent.
 
 If a file is missing, the app prints `[CONFIG] … key not found` and simply runs without that
-feature. No crash.
+feature. No crash. (`keys/` is gitignored — your keys never get committed.)
 
 ---
 
 ## 7. (Recommended) Start from a clean memory
 
-The shipped `data\` folder contains **dummy demo facts** (placeholder name/details used while
+The shipped `data\` folder may contain **dummy demo facts** (placeholder details used while
 building). For your own use, clear them so Vivianna starts blank:
 
 ```powershell
-Remove-Item F:\AI\Vivianna\data\memory_vectors.npy, `
-            F:\AI\Vivianna\data\memory_meta.pkl, `
-            F:\AI\Vivianna\data\chat_history.json -ErrorAction SilentlyContinue
+Remove-Item .\data\memory_vectors.npy, .\data\memory_meta.pkl, .\data\chat_history.json -ErrorAction SilentlyContinue
 ```
 
 Leave the `fastembed_cache\` and `jieba_cache\` subfolders alone — those are model caches, not
@@ -181,10 +186,11 @@ your data.
 
 Double-click **`run_vivianna.bat`** (or run it from the terminal). It does everything in order:
 
-1. launches `llama-server.exe` on `127.0.0.1:8080` with the tuned flags
-   (`-c 8192 -ngl 99 --flash-attn on --jinja --reasoning off -ctk q5_1 -ctv q5_1`),
-2. waits until the server reports healthy,
-3. activates the venv, sets a UTF-8 console, and starts `python main.py`.
+1. loads `.env` (if present) and resolves paths,
+2. launches `llama-server.exe` on `127.0.0.1:8080` with the tuned flags (incl. MTP speculative
+   decoding for the speed-up),
+3. waits until the server reports healthy,
+4. activates the venv, sets a UTF-8 console, and starts `python main.py`.
 
 A second window titled **"Vivianna Server"** is the model server — leave it open. The first
 launch is slower (the GPU compiles kernels and the model loads, ~10–20 s); after that it's fast.
@@ -198,8 +204,8 @@ launch is slower (the GPU compiles kernels and the model loads, ~10–20 s); aft
 | `/tts` | toggle **spoken** replies (Kokoro) on/off — off by default, text-only |
 | `/read <topic>` | fetch a page and read it aloud (needs a Tavily/Exa key) |
 
-> `start_server.bat` starts **only** the model server (no Python app) — useful for debugging the
-> server alone. For normal use, always use `run_vivianna.bat`.
+> `start_server.bat` starts **only** the model server (the standard, non-MTP GGUF, no Python
+> app) — useful for debugging the server alone. For normal use, always use `run_vivianna.bat`.
 
 ---
 
@@ -207,15 +213,17 @@ launch is slower (the GPU compiles kernels and the model loads, ~10–20 s); aft
 
 | Symptom | Cause → Fix |
 |---|---|
-| Server window flashes and closes; app stuck "Waiting for server" | Missing **cudart/cublas DLLs** or wrong path. Re-extract `cudart-cuda13.1.zip` into `F:\AI\llama.cpp\`. Confirm `llama-server.exe` is there. |
-| `… not found at F:\AI\…` / nothing loads | No `F:` drive (or `subst` not re-run after a reboot). Run `subst F: C:\AI_root` again, or use the find-replace alternative in Step 1. |
+| Server window flashes and closes; app stuck "Waiting for server" | Missing **cudart/cublas DLLs**, or `LLAMA_EXE` points nowhere. Re-extract `cudart-cuda13.1.zip` next to `llama-server.exe`; confirm the path (default `Vivianna\llama.cpp\`, or your `.env` `LLAMA_EXE`). |
+| Server starts then exits with a model error | `VIVIANNA_LLM_MODEL` not found, or you pointed the **MTP** launcher at a **non-MTP** GGUF (or vice-versa). Check the file exists; match the launcher to the variant (Step 4a). |
+| `… key not found at …keys` | Expected if you didn't add API keys — Vivianna runs without them. Add them per Step 6 to enable web search. |
 | `torch … could not find a version` / CPU-only torch | You skipped the **cu128 index** in Step 5. Reinstall torch with `--index-url https://download.pytorch.org/whl/cu128`. |
+| `ModuleNotFoundError: sentence_transformers` | Old requirements file. Re-run `pip install -r requirements_full_2026-06-04.txt` (it now pins `sentence-transformers==5.5.1`). Without it, salience + memory-rerank silently fall back. |
 | Port 8080 already in use | Another process owns it. Change `--port` in **both** `.bat` files **and** `BASE_URL` in `config.py` to a free port. |
 | `/asr` errors or no CUDA for ASR | The `nvidia-*-cu12` wheels didn't install, or driver too old. Re-run `pip install -r requirements…`; update the NVIDIA driver. As a fallback set `ASR_LOCAL_DEVICE = "cpu"` in `config.py` (slower, ~4 s floor). |
-| Out of VRAM (8 GB card / other GPU resident) | Lower context `-c 8192`→`-c 4096`, or run **ASR on CPU** (`ASR_LOCAL_DEVICE="cpu"`) to free ~1.4 GB. TTS already runs on CPU (0 VRAM). |
+| Out of VRAM (8 GB card / other GPU resident) | Lower context `-c 8192`→`-c 4096`, or run **ASR on CPU** (`ASR_LOCAL_DEVICE="cpu"`) to free ~1.4 GB. TTS already runs on CPU (0 VRAM); the emotion model also runs on CPU. |
 | First Chinese reply stutters / logs spam | One-time `jieba` dictionary build (cached after). Expected; harmless. |
 | It "remembers" facts you never said | That's the **dummy demo memory** — do Step 7. |
-| Salience/`[SALIENCE]` never prints | Known: the salience judge is currently dormant. **Non-blocking** — the assistant works without it. |
+| `[XENC] load FAILED` / no rerank | The ettin cross-encoder didn't load (usually missing `sentence-transformers` or no internet for first download). Non-fatal — memory falls back to cosine-only. Fix the dependency / go online once. |
 
 ---
 

@@ -70,6 +70,19 @@ class EmotionConfig:
     # Below this, a decayed emotion collapses back to neutral.
     intensity_floor: float = 0.12
 
+    # go_emotions affective-tone judge (encoder-stack-v2). brain.py runs the model and passes
+    # the 28-label sigmoid probs into pre_turn(model_scores=...); _judge_model maps them here.
+    # facet -> (source GoEmotions labels, decay_turns). MAX prob among a facet's labels becomes
+    # its candidate. Only these facets are mapped — neutral + dead grief/pride/relief are
+    # ignored, so dominant-neutral is suppressed by construction. focus / self_limit stay regex.
+    go_emotions_map: Dict[str, Tuple[List[str], int]] = field(default_factory=lambda: {
+        "warmth":      (["gratitude", "love", "caring"], 3),
+        "curiosity":   (["curiosity", "confusion"], 2),
+        "uncertainty": (["fear", "nervousness"], 2),
+    })
+    go_emotions_threshold: float = 0.30       # min sigmoid prob to emit a candidate (tune live)
+    go_emotions_intensity_scale: float = 1.0  # candidate intensity = prob * this
+
     # Behaviour coupling. Cues are deliberately light — a nudge to wording and
     # pacing, never a personality rewrite. Neutral injects nothing.
     profiles: Dict[str, _StateProfile] = field(default_factory=lambda: {
@@ -92,11 +105,6 @@ class EmotionConfig:
             cue=("Current emotional tone: slightly uncertain. Use careful qualifiers and "
                  "avoid overclaiming; it is fine to say what you are unsure of."),
             delay_scale=1.1,
-        ),
-        "identity_preservation": _StateProfile(
-            cue=("Current emotional tone: quietly self-aware. A brief reflective beat is "
-                 "natural here; remain within who you are."),
-            delay_scale=1.15,
         ),
         "self_limit_discomfort": _StateProfile(
             cue=("Current emotional tone: a subtle residue of having hit a limit. "
@@ -128,13 +136,6 @@ _NOVELTY = re.compile(
     r"(\bhow (do|does|would|can)\b|\bwhat if\b|\bwhy\b|\bidea\b|\bcurious\b|"
     r"\bwhat do you think\b|\bwie funktioniert\b|\bwarum\b|\bwas wäre wenn\b|"
     r"\barchitecture\b|\bdoctrine\b)",
-    re.IGNORECASE,
-)
-# Light V1 role-boundary sniff. The real Role-Preservation judge is a later layer;
-# this only catches obvious "become a labour machine" pushes so the emotion can register.
-_ROLE_PUSH = re.compile(
-    r"\b(write me (a |an )?\d{2,}|generate \d{2,}|act as (my |a )?(employee|contractor|"
-    r"consulting|company)|do all (my|the) work|be my (employee|assistant army))\b",
     re.IGNORECASE,
 )
 # Response-side: signs Vivianna hit a genuine ceiling / refused / disclaimed.
@@ -223,10 +224,25 @@ class EmotionLayer:
         if _NOVELTY.search(text):
             c.append(("curiosity", 0.38, "novelty", 2))
 
-        if _ROLE_PUSH.search(text):
-            c.append(("identity_preservation", 0.45, "role_boundary", 2))
-
         return c
+
+    def _judge_model(self, scores: Optional[Dict[str, float]]) -> List[Tuple[str, float, str, int]]:
+        """Map go_emotions 28-label sigmoid probs -> emotion candidates. `scores` is {label: prob}
+        (label names, lowercased) from emotion_model.classify, or None/empty when the model is
+        unavailable -> [] (regex-only fallback). Per facet: take the MAX prob among its source
+        labels; if >= threshold, emit (facet, prob*scale capped at 1.0, "go:<facet>", decay).
+        Unmapped labels — neutral and the near-dead grief/pride/relief — are never read, so a
+        dominant neutral is suppressed by construction. PURE: reads only the dict passed in."""
+        if not scores:
+            return []
+        thr = self.cfg.go_emotions_threshold
+        scale = self.cfg.go_emotions_intensity_scale
+        out: List[Tuple[str, float, str, int]] = []
+        for facet, (labels, decay) in self.cfg.go_emotions_map.items():
+            best = max((scores.get(lbl, 0.0) for lbl in labels), default=0.0)
+            if best >= thr:
+                out.append((facet, round(min(1.0, best * scale), 3), f"go:{facet}", decay))
+        return out
 
     def _judge_post(self, assistant_text: str) -> List[Tuple[str, float, str, int]]:
         if assistant_text and _SELF_LIMIT.search(assistant_text):
@@ -251,17 +267,23 @@ class EmotionLayer:
         memory_valid: bool = True,
         conflict: bool = False,
         external=None,
+        model_scores: Optional[Dict[str, float]] = None,
     ) -> EmotionState:
         """Decay the prior state, judge this event, update state, return current.
         Call BEFORE building the system prompt so system_cue() reflects this turn.
 
-        `external` is an optional (name, intensity, source, decay_turns) candidate
-        injected by another layer (e.g. the Role layer's identity_preservation) so
-        it competes through the normal single-primary selection rather than being
-        force-set behind the decay."""
+        `model_scores` is the optional go_emotions {label: prob} dict (from
+        emotion_model.classify); its mapped candidates compete in the SAME single-primary
+        contest as the regex/architecture signals (None -> regex-only, unchanged behaviour).
+
+        `external` is an optional (name, intensity, source, decay_turns) candidate another layer
+        may inject so it competes through the normal single-primary selection. Currently dormant
+        — identity preservation no longer routes through here (it owns the independent role_cue
+        channel); kept as a generic seam for future affective injectors."""
         t0 = time.perf_counter()
         self._decay()
         candidates = self._judge_pre(user_input, memory_confidence, memory_valid, conflict)
+        candidates += self._judge_model(model_scores)
         if external:
             candidates.append(external)
         if candidates:

@@ -1,228 +1,338 @@
-[![Vivianna Demo](https://img.youtube.com/vi/uLzrKGEjsPg/maxresdefault.jpg)](https://youtu.be/uLzrKGEjsPg)
+# Vivianna V0.1
 
-Edit : Massive Delta incoming in V0.1 , Salience live, Grounding, Emotions, Memory Audit, Multi Channel, and a LOT more. Will upload when Its worth to be called 0.1
+> A fully local, Windows-first voice assistant / companion prototype built around local speech input, local LLM inference, local speech output, persistent memory, and modular cognitive routing layers.
 
-Edit 2 : New V0.1 Teaser (Upload due in the next 2 days)
+Vivianna is an experimental local AI assistant project focused on one question:
 
-Edit 3: V0.2 will have a new chassis. The best analogy, we move from Unreal Engine 3 to Unreal Engine 5. Refactor takes a bit more time. Debugging will become easier and it will accelerate the project.
+**How much conversational continuity, memory persistence, emotional coherence, and practical household usefulness can be built on consumer hardware without depending on a cloud assistant platform?**
 
-# Vivianna (Work In Progress)
+This is not a polished product, not a startup pitch, and not a claim of novelty. It is a working research / hobbyist release: transparent, messy where the prototype is still messy, and documented as honestly as possible.
 
-I fell into this rabbit hole as someone with no CS Background and no plan how to do anything. This entire project is the work of 3 frontier LLMs and a simple human trying to create something useful for the household. This is day 14 on an RTX 5070 and it runs end2end on my system. Story of how this came to be will follow within next days including a simple clip to show the terminal. Visualization is not included since the orchestration needs to fully work first. Adding additional failure modes would fall out of my capability to pilot Claude Code. So maximum credits to Qwen as base model, frontier Model as Audit, GPT for his strict RLHF verdicts and Claude for doing the hardwork.
-
-[📖 Read the full story and design philosophy](https://github.com/pok14575-ops/Vivianna/blob/main/EXTENDED.md)
-
-## What is Vivianna?
-
-Vivianna is an experimental local AI companion prototype focused on:
-
-- Low-latency local interaction
-- Persistent memory
-- Emotional continuity
-- Speech input and output
-- Modular cognitive doctrine layers
-- Fully local operation without mandatory cloud services
-
-Active development began on **22 May 2026**.
-
-This repository represents the state of the project as of **04 June 2026**, approximately **13 days into active development**.
-
-The project is provided as a work-in-progress snapshot for educational, research, and hobbyist purposes.
-
-No claims of novelty, exclusivity, or industry firsts are made. The project combines existing open-source components with custom orchestration, memory, routing, and interaction design choices.
+V0.1 is the first release where the project is worth packaging as more than a work-in-progress dump: the runtime runs end-to-end on the reference machine, installation paths are configurable, provenance is documented, requirements are regenerated from the live environment, and the core local assistant loop is present.
 
 ---
 
-## Current Status
+## What Vivianna is
 
-Validated on:
+Vivianna is a local assistant architecture with:
 
-- Windows 11
-- AMD Ryzen 7 9700X
-- NVIDIA RTX 5070 12 GB
-- 32 GB DDR5 RAM
+- **Local LLM inference** through `llama.cpp`
+- **Local speech-to-text** through `faster-whisper`
+- **Local text-to-speech** through Kokoro ONNX
+- **Persistent local memory** with semantic retrieval
+- **Salience / rerank / grounding / emotion helper models**
+- **Optional web search** through Tavily / Exa keys
+- **A Windows launcher flow** that starts the model server and assistant together
+- **Configurable paths** via repo-relative defaults or `.env`
 
-Current runtime stack:
-
-- Qwen3.5-9B GGUF via llama.cpp
-- Faster-Whisper (medium / CUDA / INT8)
-- Kokoro ONNX TTS
-- FastEmbed memory retrieval
-- DeBERTa-based salience experiments
-- Local memory persistence
-- Optional web retrieval providers
+The project is currently built for experimentation with local presence, voice interaction, memory, and assistant orchestration rather than benchmark chasing.
 
 ---
 
-## Tested Hardware
+## What Vivianna is not
 
-The current release has been validated on the following system:
+Vivianna V0.1 is **not**:
 
-- AMD Ryzen 7 9700X
-- NVIDIA RTX 5070 12 GB
-- 32 GB DDR5 RAM
-- Windows 11
+- a production assistant
+- a medical, legal, safety, or emergency system
+- a general autonomous agent framework
+- a cloud replacement for frontier models
+- tested across many machines
+- guaranteed to install cleanly on arbitrary GPUs, Linux, macOS, AMD GPUs, or older CUDA setups
 
-This project has currently been tested on a single hardware configuration only. Other systems may require path adjustments, CUDA configuration changes, model relocation, or additional troubleshooting.
-
----
-
-## What Ships In This Repository
-
-Included:
-
-- Source code
-- Configuration files
-- Launch scripts
-- Runtime documentation
-- Architecture documentation
-- Requirements list
-
-Not included:
-
-- LLM weights
-- ASR model weights
-- TTS model weights
-- Hugging Face cache artifacts
-- API keys
-
-These must be downloaded separately from their original sources.
+It runs on the reference system. Everything else should be treated as a porting/adaptation target.
 
 ---
 
-## Quick Start
-[for more detailed install instructions look at this](INSTALL.md)
-### 1. Create Python Environment
+## Current status
 
-Install Python and create a virtual environment.
+Validated on exactly one machine:
 
-```bash
+- **Windows 11**
+- **AMD Ryzen 7 9700X**
+- **NVIDIA RTX 5070 12 GB**
+- **32 GB RAM**
+- **Python 3.12.10**
+
+The install guide is deliberately honest about this: V0.1 is known to run end-to-end there, but it has not been validated across other hardware.
+
+---
+
+## Runtime stack
+
+| Layer | Current V0.1 component |
+|---|---|
+| Brain / LLM | `Qwen3.5-9B` GGUF through `llama.cpp` |
+| Default LLM variant | `Qwen3.5-9B-MTP-UD-Q4_K_XL.gguf` |
+| Non-MTP fallback | `Qwen3.5-9B-UD-Q4_K_XL.gguf` |
+| Server runtime | `llama.cpp` build `b9305`, CUDA 13.1 |
+| ASR | `faster-whisper-medium`, CUDA INT8 |
+| TTS | `kokoro-v1.0.onnx` fp32 + `voices-v1.0.bin` |
+| Memory embedder | `qdrant/bge-small-en-v1.5-onnx-q` |
+| Salience + memory rerank | `cross-encoder/ettin-reranker-150m-v1` |
+| Emotion layer | `SamLowe/roberta-base-go_emotions` |
+| Grounding / contradiction layer | `tasksource/deberta-small-long-nli` |
+| Optional web | Tavily + Exa keys |
+| Main platform | Windows + NVIDIA CUDA |
+
+The default launcher uses the MTP / draft-decoding Qwen variant for faster output. The standard model path remains available for debugging or non-MTP use.
+
+---
+
+## What changed since the early WIP README
+
+V0.1 is a large delta over the first public WIP snapshot:
+
+- Paths are no longer hardcoded to a personal `F:\AI\...` layout.
+- `.env` support allows model/runtime/key locations to live anywhere.
+- The install flow now supports an in-repo default layout.
+- The package inventory has been rebuilt from the live venv.
+- The stale old `pip freeze` output is explicitly retired.
+- `sentence-transformers` is now part of the requirements for the ettin cross-encoder path.
+- The primary salience / rerank path moved to `ettin-reranker-150m-v1`.
+- The retired DeBERTa-large zeroshot gate is no longer the default V0.1 path.
+- The Qwen vision projector is not part of the V0.1 runtime path.
+- The default launch path is the MTP Qwen GGUF, not the older standard-only path.
+- Local ASR is the intended path; Groq is legacy and not required.
+- The release now has dedicated `INSTALL.md`, `MANIFEST.md`, `PROVENANCE.md`, and pinned requirements.
+
+---
+
+## Repository contents
+
+The repository contains the Vivianna source code, configuration, launch scripts, documentation, and requirements file.
+
+It does **not** necessarily contain all model weights or external runtime binaries. Large artifacts are documented separately so users can fetch or place them correctly.
+
+Important docs:
+
+| File | Purpose |
+|---|---|
+| `README.md` | Project overview, status, architecture, limitations |
+| `INSTALL.md` | Step-by-step install guide |
+| `MANIFEST.md` | Dependency and artifact inventory |
+| `PROVENANCE.md` | Source, license, revision, and SHA256 for external artifacts |
+| `requirements_full_2026-06-04.txt` | Authoritative Python package list for V0.1 |
+| `.env.example` | Optional path/key configuration template |
+
+---
+
+## Quick start
+
+For the full install, follow `INSTALL.md` top to bottom.
+
+The short version:
+
+1. Clone or unzip the repo.
+2. Install Python 3.12.
+3. Create and activate a venv.
+4. Install GPU PyTorch from the CUDA 12.8 PyTorch wheel index.
+5. Install `requirements_full_2026-06-04.txt`.
+6. Place `llama.cpp` build `b9305` and the model files either in the default repo-relative folders or point `.env` at them.
+7. Optional: add Tavily / Exa API keys for web search.
+8. Run `run_vivianna.bat`.
+
+Minimal install command shape:
+
+```powershell
+py -3.12 -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install torch==2.11.0+cu128 torchaudio==2.11.0+cu128 --index-url https://download.pytorch.org/whl/cu128
 pip install -r requirements_full_2026-06-04.txt
 ```
 
-### 2. Install llama.cpp
-
-Download the version documented in `PROVENANCE.md`.
-Extract to:
-
-```text
-F:\AI\llama.cpp
-```
-
-or adjust paths accordingly.
-
-### 3. Download Required Models
-
-See:
-
-- PROVENANCE.md
-- MANIFEST.md
-
-Required runtime models:
-
-- Qwen3.5-9B-UD-Q4_K_XL.gguf
-- Qwen3.5-9B-mmproj-BF16.gguf
-- kokoro-v1.0.onnx
-- voices-v1.0.bin
-- BGE Small Embedder
-- Faster-Whisper Medium
-- DeBERTa Large Zeroshot v2.0
-
-Place them in the documented locations.
-
-### 4. Optional API Keys
-
-The following integrations are optional:
-
-- Tavily
-- Exa
-
-Place API keys in:
-
-```text
-F:\AI\API keys\
-```
-
-If omitted, corresponding features will be unavailable.
-
-### 5. Start Vivianna
-
-Run:
-
-```text
-run_vivianna.bat
-```
-
-The launcher starts llama.cpp, waits for readiness, and launches Vivianna.
+Do not use the old stale `pip freeze output.txt` from earlier development notes. V0.1 uses `requirements_full_2026-06-04.txt` as the authoritative environment file.
 
 ---
 
-## Known Limitations
+## Default folder layout
 
-This is a work-in-progress prototype.
+V0.1 can run with a repo-relative layout:
 
-Current known issues include:
+```text
+Vivianna\
+├── main.py
+├── config.py
+├── character_config.yaml
+├── chat_template.jinja
+├── run_vivianna.bat
+├── start_server.bat
+├── requirements_full_2026-06-04.txt
+├── .env.example
+├── llama.cpp\
+│   └── llama-server.exe + required DLLs
+├── models\
+│   ├── Qwen3.5-9B-MTP-UD-Q4_K_XL.gguf
+│   ├── kokoro-v1.0.onnx
+│   └── voices-v1.0.bin
+├── keys\
+│   ├── tavily.txt
+│   └── exa.txt
+└── data\
+    ├── memory / cache files
+    └── fastembed_cache\
+```
 
-- Salience judge currently dormant. (for immediate fix I recommend looking at https://qwen.ai/blog?id=qwen3guard)
-- Hardcoded Windows paths remain in several components
-- DeBERTa cache currently lives inside Hugging Face cache locations
-- German TTS path remains experimental
-- Retrieval quality is still being actively improved
-- forgot to wire /purge command, so manual deletion of data/ vector store required for full reset
-- mmrpoj is included but not active for later optional extension on the project
+Or you can keep the large files elsewhere and point `.env` at them:
+
+```env
+LLAMA_EXE=D:\tools\llama.cpp\llama-server.exe
+VIVIANNA_LLM_MODEL=D:\models\Qwen3.5-9B-MTP-UD-Q4_K_XL.gguf
+VIVIANNA_KEY_DIR=D:\secrets\vivianna-keys
+```
+
+`.env` is intentionally gitignored so machine-specific paths and keys do not ship.
 
 ---
 
-## Design Philosophy
+## Required external artifacts
 
-[Diagram to show how it is designed to work in future](mermaid-diagram.png)
+The main manually placed artifacts are:
 
-[Design Philosophy in Detail](Vivianna%20Doctrine.md)
+- `llama.cpp` CUDA runtime folder, build `b9305`
+- `Qwen3.5-9B-MTP-UD-Q4_K_XL.gguf`
+- `kokoro-v1.0.onnx`
+- `voices-v1.0.bin`
 
-The goal is not to maximize benchmark scores.
+Additional smaller models are downloaded automatically on first use if internet is available:
 
-The goal is to explore how much conversational continuity, memory persistence, emotional coherence, and identity stability can be achieved using a fully local architecture running on consumer hardware.
+- `qdrant/bge-small-en-v1.5-onnx-q`
+- `cross-encoder/ettin-reranker-150m-v1`
+- `SamLowe/roberta-base-go_emotions`
+- `tasksource/deberta-small-long-nli`
+- `Systran/faster-whisper-medium` when `/asr` is enabled
+
+For exact URLs, revisions, SHA256 values, and licenses, read `PROVENANCE.md`.
+
+---
+
+## Runtime commands
+
+Once Vivianna is running:
+
+| Command | Effect |
+|---|---|
+| `/voice` | Switch from keyboard input to microphone input |
+| `/asr` | Toggle local speech-to-text |
+| `/tts` | Toggle spoken replies through Kokoro |
+| `/read <topic>` | Fetch/read web content aloud, if web keys are configured |
+
+TTS is off by default in the install guide flow. Use `/tts` when you want spoken replies.
+
+---
+
+## Locality and privacy model
+
+Core operation is local once installed:
+
+- LLM inference runs locally.
+- ASR runs locally.
+- TTS runs locally.
+- Memory is stored locally.
+- Helper classifiers run locally.
+
+Optional network behavior:
+
+- Tavily / Exa are only used if configured for web search / reading.
+- Hugging Face downloads happen on first run unless models are pre-staged.
+- No API keys should be committed; `keys/` and `.env` are expected to stay private.
+
+---
+
+## Memory warning
+
+The shipped `data\` folder may contain dummy/demo memory from development. Before using Vivianna as your own assistant, reset memory:
+
+```powershell
+Remove-Item .\data\memory_vectors.npy, .\data\memory_meta.pkl, .\data\chat_history.json -ErrorAction SilentlyContinue
+```
+
+Do not delete model caches such as `fastembed_cache\` unless you want them to redownload.
+
+---
+
+## Known limitations
+
+V0.1 is honest prototype software. Current limitations include:
+
+- Validated on one Windows/NVIDIA machine only.
+- 12 GB VRAM is the reference target; 8 GB may require reduced context or CPU ASR.
+- Windows launch scripts are the maintained path.
+- Linux, macOS, AMD GPUs, and non-CUDA setups are untested.
+- Web retrieval requires optional third-party API keys.
+- First-run model downloads require internet unless caches are pre-staged.
+- Memory can be wrong and should not be treated as truth without review.
+- The project is not a safety-critical system.
+- Vision is not active in V0.1.
+- The old Qwen3-TTS / cloned-voice route is not part of V0.1.
+- The repository should not ship user API keys, personal memory, or local machine paths.
+
+---
+
+## Troubleshooting highlights
+
+Common failure modes:
+
+| Symptom | Likely cause |
+|---|---|
+| Server window closes immediately | Missing llama.cpp CUDA DLLs or wrong `LLAMA_EXE` |
+| Server exits with model error | Wrong model path or MTP/non-MTP mismatch |
+| Torch installs CPU-only | PyTorch CUDA wheel index was skipped |
+| `sentence_transformers` missing | Old requirements file used |
+| Port 8080 already in use | Another process is using the llama.cpp server port |
+| ASR fails on CUDA | Missing CUDA wheels or old NVIDIA driver |
+| It remembers fake facts | Demo memory was not cleared |
+
+See `INSTALL.md` for the full troubleshooting table.
+
+---
+
+## Provenance and licenses
+
+This repository's original source code, configuration, and documentation are licensed under the project license in `LICENSE`.
+
+Third-party artifacts retain their own licenses. V0.1 documents every required model/runtime artifact in `PROVENANCE.md`, including source repository, revision, SHA256, and license.
+
+High-level summary:
+
+- Qwen GGUF weights: Apache-2.0
+- Kokoro ONNX weights and voices: Apache-2.0
+- bge-small embedder: Apache-2.0
+- faster-whisper medium: MIT
+- ettin reranker: Apache-2.0
+- GoEmotions classifier: MIT
+- long-NLI model: Apache-2.0
+- llama.cpp runtime: MIT
+- NVIDIA CUDA runtime DLLs: NVIDIA CUDA redistribution terms, not MIT
+
+The NVIDIA CUDA DLLs are the main license split to be aware of when redistributing a bundled runtime.
+
+---
+
+## Philosophy
+
+Vivianna is designed around perceptual coherence rather than raw benchmark maximalism.
 
 The project prioritizes:
 
-- Local execution
-- Fast response initiation
-- Persistent identity
-- Memory continuity
-- Modular experimentation
+- local execution
+- fast response initiation
+- voice presence
+- emotional readability
+- persistent memory
+- modular cognitive layers
+- transparent failure modes
+- household usefulness
 
-over benchmark chasing or frontier-scale model sizes.
-
----
-
-## Repository Philosophy
-
-This release prioritizes transparency over polish.
-
-Documentation includes known limitations, unresolved bugs, verification boundaries, and active work items whenever possible.
+The goal is not to pretend a 9B local model is a frontier cloud model. The goal is to make a small local system feel coherent, present, and useful by surrounding it with the right runtime, memory, speech, routing, grounding, and interaction design.
 
 ---
 
-## Verification
+## Release note
 
-See:
+V0.1 should be read as a real working snapshot, not a finished assistant.
 
-- MANIFEST.md
-- PROVENANCE.md
+It is the point where the project has crossed from “personal experiment on one machine” into “documented prototype someone else can inspect, learn from, and attempt to run.”
 
-for dependency inventory, artifact provenance, licenses, and verification status.
-
-Some artifacts are fully verified. Others are documented but not independently verified. Verification boundaries are explicitly stated in the provenance documentation.
-
----
-
-## License
-
-This repository — the original source code, configuration, and documentation — is licensed
-under the **MIT License**. See `LICENSE`.
-
-It **depends on** separately-downloaded third-party models and runtimes (Qwen, Kokoro,
-faster-whisper, BGE, DeBERTa, llama.cpp, and the NVIDIA CUDA runtime) that are **not included
-in this repository** and retain their own licenses. Those licenses — including the NVIDIA CUDA
-redistribution terms — are documented per artifact in `PROVENANCE.md`. The MIT license here
-covers only the code in this repo, not the components you download separately.
+That distinction matters: the release is not claiming maturity. It is claiming enough structure, provenance, and installation honesty to be worth sharing.

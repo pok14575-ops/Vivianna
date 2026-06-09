@@ -5,13 +5,13 @@ import queue
 import numpy as np
 import sounddevice as sd
 from kokoro_onnx import Kokoro
-from config import TTS_TAIL_DELAY, TTS_ENABLED, TTS_DEBUG
+from config import TTS_TAIL_DELAY, TTS_ENABLED, TTS_DEBUG, TTS_MODEL_PATH, TTS_VOICES_PATH, MEMORY_DIR
 
 # Kokoro default-voice TTS (English-first). Replaces the Qwen3-TTS German
 # voice-clone backend — no reference audio, no KikiriTest dependency. German +
 # Chinese return later as language layers once the orchestration is proven in English.
-MODEL_PATH    = "F:/AI/Models/kokoro-v1.0.onnx"   # fp32 — ~3.8x faster than int8 on this CPU (int8 dynamic-quant path is slower here)
-VOICES_PATH   = "F:/AI/Models/voices-v1.0.bin"
+MODEL_PATH    = TTS_MODEL_PATH    # fp32 — ~3.8x faster than int8 on this CPU (int8 dynamic-quant path is slower here)
+VOICES_PATH   = TTS_VOICES_PATH
 DEFAULT_SPEED = 1.0
 
 # Mandarin G2P. Kokoro's espeak backend can't phonemize Chinese, so zh sentences are
@@ -30,7 +30,7 @@ def _zh_phonemize(text: str) -> str:
         # the same trap that broke the fastembed cache (recurring NO_SUCHFILE).
         # Pin it to the project data dir so the dict is built once and survives
         # temp wipes. Must be set before the first tokenize (i.e. before ZHG2P).
-        _jieba_cache = "F:/AI/Vivianna/data/jieba_cache"
+        _jieba_cache = os.path.join(MEMORY_DIR, "jieba_cache")
         os.makedirs(_jieba_cache, exist_ok=True)
         jieba.dt.tmp_dir = _jieba_cache
         # jieba logs its dict-build chatter at DEBUG straight to stderr, which

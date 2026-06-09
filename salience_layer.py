@@ -49,8 +49,15 @@ class SalienceConfig:
 
     # --- Semantic model (PRIMARY when available) ---
     use_model: bool = True
-    model_name: str = "MoritzLaurer/deberta-v3-large-zeroshot-v2.0"
+    # backend: "cross-encoder" -> ettin via shared singleton + softmax facet aggregation
+    #          "zeroshot"      -> DeBERTa-v3-large zero-shot pipeline (original)
+    backend: str = "cross-encoder"
+    model_name: str = "MoritzLaurer/deberta-v3-large-zeroshot-v2.0"  # zeroshot backend only
+    xenc_model: str = "cross-encoder/ettin-reranker-150m-v1"          # cross-encoder backend
+    agg: str = "softmax"              # cross-encoder aggregation: "softmax" (facets compete) | "indep"
+    agg_temp: float = 1.0             # logit temperature for the cross-encoder aggregation
     model_device: str = "auto"        # "auto" -> cuda if available else cpu; or "cuda"/"cpu"
+    model_max_length: int = 512       # match deberta-v3-large's window (its tokenizer already pins 512; defensive)
     transient_weight: float = 0.30    # penalty multiplier on P(transient) for the model path
 
     # Natural-language hypotheses for the zero-shot model. Keys are the facet
@@ -146,6 +153,9 @@ class SalienceLayer:
                 device=device,
                 dtype=torch.float32,
             )
+            # DeBERTa reports no predefined max length (relative position) -> pin it so
+            # long premise+hypothesis pairs truncate instead of silently overflowing.
+            self._clf.tokenizer.model_max_length = self.cfg.model_max_length
             self._label2facet = {v: k for k, v in self.cfg.hypotheses.items()}
             self._model_labels = list(self.cfg.hypotheses.values())
             self._debug(
@@ -193,6 +203,52 @@ class SalienceLayer:
         self._debug(f"score={s:.2f} reasons={reasons} text={t[:60]!r}")
         return SalienceResult(score=round(s, 3), reasons=reasons)
 
+    def _score_xenc(self, t: str, recurring: bool) -> Optional[SalienceResult]:
+        """Cross-encoder salience: score the candidate against each facet hypothesis
+        as a (hypothesis, text) pair, then aggregate. "softmax" makes the facets
+        COMPETE (score = 1 - P(transient)), which is calibrated for cross-encoders
+        whose memorable facets over-fire on noise (see test_reranker_compare --large).
+        Returns None on any failure so score() falls through to regex."""
+        try:
+            from cross_encoder_model import get_model
+            model = get_model(self.cfg.xenc_model, self.cfg.model_device)
+            if model is None:
+                return None
+            import numpy as np
+
+            facets = list(self.cfg.hypotheses.keys())
+            hyps = [self.cfg.hypotheses[f] for f in facets]
+            ti = facets.index("transient")
+            raw = np.asarray(
+                model.predict([[h, t] for h in hyps], show_progress_bar=False),
+                dtype="float64",
+            )
+            if self.cfg.agg == "softmax":
+                z = raw / self.cfg.agg_temp
+                p = np.exp(z - z.max())
+                p /= p.sum()
+                s = 1.0 - float(p[ti])
+                reasons = ["xenc-softmax", f"transient={float(p[ti]):.2f}"]
+            else:  # "indep": sigmoid per facet, max(memorable) - w*transient
+                p = 1.0 / (1.0 + np.exp(-raw / self.cfg.agg_temp))
+                mem = max(float(p[j]) for j in range(len(facets)) if j != ti)
+                s = mem - self.cfg.transient_weight * float(p[ti])
+                reasons = ["xenc-indep", f"mem={mem:.2f}", f"transient-{self.cfg.transient_weight*float(p[ti]):.2f}"]
+        except Exception as e:  # noqa: BLE001
+            self._debug(f"cross-encoder scoring failed ({type(e).__name__}: {e}); regex fallback")
+            return None
+
+        if len(t) < self.cfg.short_text_chars:
+            s -= self.cfg.short_text_penalty
+            reasons.append(f"short-{self.cfg.short_text_penalty:.2f}")
+        if recurring:
+            s += self.cfg.recurring_boost
+            reasons.append(f"recurring+{self.cfg.recurring_boost:.2f}")
+
+        s = max(0.0, min(1.0, s))
+        self._debug(f"score={s:.2f} reasons={reasons} text={t[:60]!r}")
+        return SalienceResult(score=round(s, 3), reasons=reasons)
+
     def _score_regex(self, t: str, recurring: bool) -> SalienceResult:
         """Deterministic regex judge (fallback). Original V1 logic."""
         reasons: List[str] = []
@@ -225,8 +281,13 @@ class SalienceLayer:
         """
         t = (text or "").strip()
 
-        if self._ensure_model():
-            res = self._score_model(t, recurring)
-            if res is not None:
-                return res
+        if self.cfg.use_model:
+            if self.cfg.backend == "cross-encoder":
+                res = self._score_xenc(t, recurring)
+                if res is not None:
+                    return res
+            elif self._ensure_model():           # "zeroshot" (DeBERTa) path
+                res = self._score_model(t, recurring)
+                if res is not None:
+                    return res
         return self._score_regex(t, recurring)

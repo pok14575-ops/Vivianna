@@ -46,6 +46,10 @@ class PreGenResult:
     memory_valid: bool
     conflict: bool
     debug_flags: List[str] = field(default_factory=list)
+    # Texts of the retrieved memories flagged as contradicting the user's current message
+    # (3c grounding). brain.py uses these to look up each one's age for the time-gated
+    # clarify-and-resolve flow — single-pass: the NLI work already happened here.
+    conflict_texts: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -69,6 +73,12 @@ class StabilizerConfig:
     suppress_reasoning_bleed: bool = True
     suppress_identity_leak: bool = True
     memory_threshold: float = 0.62
+    # Read-time grounding (3c, Option A): when enabled, NLI flags a retrieved memory as
+    # conflicting if it CONTRADICTS the current user message, lighting up the existing
+    # conflict -> memory_valid=False path. Off by default so the module stays behavior-neutral
+    # unless brain.py opts in; fallback-safe (grounding unavailable -> no-op, cosine behavior).
+    grounding_enabled: bool = False
+    grounding_contradict_threshold: float = 0.60
 
     cadence_delays: Dict[str, float] = field(default_factory=lambda: {
         ",": 0.08,
@@ -120,8 +130,12 @@ class ViviannaStabilizer:
     ) -> PreGenResult:
         t0 = time.perf_counter()
         memory_items = [self._normalize_memory(m) for m in memories]
-        conflict = any(m.conflict for m in memory_items)
         flags: List[str] = []
+        # Read-time grounding (3c): may set m.conflict=True via NLI BEFORE we aggregate, so a
+        # memory that contradicts what the user just said flips memory_valid -> False below.
+        if self.cfg.grounding_enabled and memory_items:
+            self._apply_grounding_conflict(memory_items, user_input, flags)
+        conflict = any(m.conflict for m in memory_items)
 
         if not memory_items:
             # Nothing retrieved — nothing to validate.
@@ -175,6 +189,7 @@ class ViviannaStabilizer:
             memory_valid=memory_valid,
             conflict=conflict,
             debug_flags=flags,
+            conflict_texts=[m.text for m in memory_items if m.conflict and m.text],
         )
 
     # ── stream filter — async (future async path) ───────────────────────────────
@@ -341,6 +356,47 @@ class ViviannaStabilizer:
                 base -= 0.35
             best = max(best, max(0.0, min(1.0, base)))
         return best
+
+    def _apply_grounding_conflict(
+        self, memory_items: List[MemoryItem], user_input: str, flags: List[str]
+    ) -> None:
+        """Read-time grounding (3c, Option A). For each retrieved memory, ask NLI whether it
+        CONTRADICTS the user's current message (premise=memory, hypothesis=user_input). A
+        confident contradiction marks that item conflict=True, which flows into the existing
+        conflict -> memory_valid=False path: fires the "say so plainly" cue AND blocks this
+        turn's auto-save (post_generate, `if not pre.memory_valid`). Premise is the single
+        memory (SHORT) -> the VRAM rule, not a latency one.
+
+        Fallback-safe: if grounding is unavailable (import fails, or the model never loaded ->
+        contradiction_prob returns None) every item is left untouched -> identical to the
+        pre-grounding cosine-only behavior. None is all-or-nothing per session (singleton
+        either loaded or _failed), so the early return can't leave partial conflict state."""
+        try:
+            import grounding
+        except Exception:
+            return
+        thr = self.cfg.grounding_contradict_threshold
+        scores: List[float] = []
+        n_conflict = 0
+        for m in memory_items:
+            if not m.text:
+                scores.append(-1.0)
+                continue
+            p = grounding.contradiction_prob(m.text, user_input)  # premise=mem, hyp=user msg
+            if p is None:                 # model unavailable -> stop, behave as before
+                return
+            scores.append(p)
+            if p >= thr:
+                m.conflict = True
+                n_conflict += 1
+        if n_conflict:
+            flags.append("grounding_conflict")
+        if self.cfg.debug:
+            self._debug(
+                "GROUND",
+                f"contradict={[round(s, 2) for s in scores]} thr={thr:.2f} "
+                f"conflicts={n_conflict}/{len(memory_items)}",
+            )
 
     async def _aiter(self, maybe_async_iterable: Any):
         if hasattr(maybe_async_iterable, "__aiter__"):
