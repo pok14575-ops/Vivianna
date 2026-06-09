@@ -4,7 +4,7 @@ Will update for a V0.1 clip on a later date, this clip is just the old teaser fo
 
 ## What's Next
 
-![V0.2 Teaser](docs/Teaser%20v0.2.png)
+![V0.2 Teaser](Teaser%20v0.2.png)
 
 *Preview of the upcoming V0.2 architecture and capability expansion.*
 
