@@ -1,7 +1,6 @@
-[![Vivianna Demo](https://img.youtube.com/vi/ZfMixvZ_T3g/0.jpg)](https://www.youtube.com/watch?v=ZfMixvZ_T3g)
-
+[![Vivianna Demo](https://img.youtube.com/vi/uLzrKGEjsPg/maxresdefault.jpg)](https://youtu.be/uLzrKGEjsPg)
 Edit : Massive Delta incoming in V0.1 , Salience live, Grounding, Emotions, Memory Audit, Multi Channel, and a LOT more. Will upload when Its worth to be called 0.1
-
+Edit 2 : New V0.1 Teaser
 
 # Vivianna (Work In Progress)
 
