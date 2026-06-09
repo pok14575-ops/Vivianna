@@ -1,6 +1,9 @@
 [![Vivianna Demo](https://img.youtube.com/vi/uLzrKGEjsPg/maxresdefault.jpg)](https://youtu.be/uLzrKGEjsPg)
+
 Edit : Massive Delta incoming in V0.1 , Salience live, Grounding, Emotions, Memory Audit, Multi Channel, and a LOT more. Will upload when Its worth to be called 0.1
+
 Edit 2 : New V0.1 Teaser (Upload due in the next 2 days)
+
 Edit 3: V0.2 will have a new chassis. The best analogy, we move from Unreal Engine 3 to Unreal Engine 5. Refactor takes a bit more time. Debugging will become easier and it will accelerate the project.
 
 # Vivianna (Work In Progress)
