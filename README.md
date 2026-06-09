@@ -2,6 +2,12 @@
 
 Will update for a V0.1 clip on a later date, this clip is just the old teaser for V0.1 , a placeholder
 
+## What's Next
+
+![V0.2 Teaser](docs/Teaser%20v0.2.png)
+
+*Preview of the upcoming V0.2 architecture and capability expansion.*
+
 # Vivianna V0.1
 
 > A fully local, Windows-first voice assistant / companion prototype built around local speech input, local LLM inference, local speech output, persistent memory, and modular cognitive routing layers.
