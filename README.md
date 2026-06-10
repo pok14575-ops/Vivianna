@@ -8,6 +8,8 @@ Will update for a V0.1 clip on a later date, this clip is just the old teaser fo
 
 *Preview of the upcoming V0.2 architecture and capability expansion.*
 
+> **V0.2 preview:** see [`VIVIANNA_SELF_RECOGNITION_MILESTONE_2026-06-10.md`](./VIVIANNA_SELF_RECOGNITION_MILESTONE_2026-06-10.md)
+
 # Vivianna V0.1
 
 > A fully local, Windows-first voice assistant / companion prototype built around local speech input, local LLM inference, local speech output, persistent memory, and modular cognitive routing layers.
